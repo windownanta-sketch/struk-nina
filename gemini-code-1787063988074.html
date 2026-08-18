@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Bukti Transaksi · Nina I Fix ID</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B19;
+    --paper:#F6F1E7;
+    --line:#D8CFBC;
+    --line-strong:#B7AC93;
+    --ok:#2E7D4F;
+    --err:#B1402C;
+    --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:480px;margin:0 auto;padding:20px 18px 60px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+  .brand{display:flex;flex-direction:column;}
+  .brand .eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--line-strong);font-weight:600;}
+  .brand h1{font-family:'Space Grotesk',sans-serif;font-size:20px;margin:2px 0 0;font-weight:700;letter-spacing:-.01em;}
+  .conn-badge{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;white-space:nowrap;}
+  .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--err);flex-shrink:0;}
+  .conn-badge.connected .conn-dot{background:var(--ok);}
+  .card{background:#fff;padding:18px;border-radius:var(--radius);border:1.5px solid var(--line);margin-bottom:14px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:#57503F;margin-bottom:6px;}
+  .field input,.field select,.field textarea{
+    width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:var(--radius);
+    font-family:'Inter',sans-serif;font-size:14.5px;background:#fff;color:var(--ink);
+  }
+  .field input:focus,.field select:focus{outline:none;border-color:var(--line-strong);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .divider{border:none;border-top:1px dashed var(--line-strong);margin:20px 0;}
+  .section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--line-strong);margin-bottom:12px;}
+  .receipt-wrap{margin:22px 0 10px;}
+  .receipt-preview{
+    background:#fff;
+    padding:16px 14px 4px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    line-height:1.55;
+    white-space:pre-wrap;
+    word-break:break-word;
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+    border-top:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(28,27,25,.06);
+  }
+  .receipt-preview::after{
+    content:"";
+    display:block;
+    height:12px;
+    margin-top:2px;
+    background:
+      linear-gradient(-45deg, var(--paper) 6px, transparent 0) 0 0/12px 12px repeat-x,
+      linear-gradient(45deg, var(--paper) 6px, transparent 0) 0 0/12px 12px repeat-x;
+    background-color:#fff;
+  }
+  .actions{display:flex;flex-direction:column;gap:10px;margin-top:18px;}
+  .btn{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;
+    border:none;border-radius:var(--radius);padding:14px;cursor:pointer;text-align:center;
+  }
+  .btn.primary{background:var(--ink);color:#fff;}
+  .btn.secondary{background:#fff;border:1.5px solid var(--line);color:var(--ink);}
+  .hint{font-size:11.5px;color:#8A8272;text-align:center;margin-top:2px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <span class="eyebrow">Nina I Fix ID</span>
+      <h1 id="app-title">Bukti Transaksi</h1>
+    </div>
+    <button class="conn-badge" id="connBadge" onclick="connectPrinter()">
+      <span class="conn-dot" id="connDot"></span>
+      <span id="connLabel">Printer</span>
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="field">
+      <label>Jenis Transaksi</label>
+      <select id="jenis" onchange="toggleFormMode()">
+        <option value="NINA GADAI">NINA GADAI (Angsuran / Tebus / Service)</option>
+        <option value="TRANSAKSI ACC">TRANSAKSI ACC</option>
+        <option value="TRANSAKSI AKSESORIS">TRANSAKSI AKSESORIS</option>
+        <option value="NINA-PAY">NINA-PAY</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Nama Nasabah / Pelanggan</label>
+      <input id="nama" placeholder="Nama" oninput="renderReceipt()">
+    </div>
+    <div class="field">
+      <label>Barang</label>
+      <input id="barang" placeholder="Contoh: iPhone 15 / Charger Original" oninput="renderReceipt()">
+    </div>
+
+    <!-- Bagian Khusus Nina Gadai -->
+    <div id="gadai-fields">
+      <div class="field">
+        <label>Opsi Pembayaran Gadai</label>
+        <select id="opsiGadai" onchange="renderReceipt()">
+          <option value="CICILAN">Cicilan Pokok + Service Payment</option>
+          <option value="POKOK">Cicilan Pokok Saja</option>
+          <option value="SERVICE">Service Payment Saja (Bunga)</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Angsuran Ke-</label>
+          <input id="ke" type="number" min="1" value="1" oninput="renderReceipt()">
+        </div>
+        <div class="field">
+          <label>Tanggal</label>
+          <input id="tanggal" type="date" oninput="renderReceipt()">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Bayar Pokok (Rp)</label>
+          <input id="jumlahPokok" type="number" placeholder="0" oninput="renderReceipt()">
+        </div>
+        <div class="field">
+          <label>Service Payment (Rp)</label>
+          <input id="jumlahService" type="number" placeholder="0" oninput="renderReceipt()">
+        </div>
+      </div>
+      <div class="field">
+        <label>Sisa Pinjaman Pokok (Rp)</label>
+        <input id="sisa" type="number" placeholder="0" oninput="renderReceipt()">
+      </div>
+    </div>
+
+    <!-- Bagian Khusus Transaksi ACC / Aksesoris / Nina-Pay -->
+    <div id="umum-fields" style="display:none;">
+      <div class="row2">
+        <div class="field">
+          <label>Tanggal</label>
+          <input id="tanggalUmum" type="date" oninput="renderReceipt()">
+        </div>
+        <div class="field">
+          <label>Jumlah Dibayar (Rp)</label>
+          <input id="jumlahUmum" type="number" placeholder="0" oninput="renderReceipt()">
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Catatan (opsional)</label>
+      <input id="catatan" placeholder="Catatan tambahan" oninput="renderReceipt()">
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div class="section-label">Preview Struk</div>
+  <div class="receipt-wrap"><div class="receipt-preview" id="receipt-preview"></div></div>
+
+  <div class="actions">
+    <button class="btn primary" onclick="printReceipt()">🖨️ Cetak ke Printer Bluetooth</button>
+    <button class="btn secondary" onclick="browserPrint()">Cetak via Browser (uji coba)</button>
+    <p class="hint">Gunakan Chrome di Android untuk cetak bluetooth[cite: 1]. Pastikan printer 58mm menyala &amp; dalam mode pairing[cite: 1].</p>
+  </div>
+</div>
+
+<script>
+function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+window.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('tanggal').value = todayISO();
+  document.getElementById('tanggalUmum').value = todayISO();
+  toggleFormMode();
+});
+
+function toggleFormMode(){
+  const jenis = document.getElementById('jenis').value;
+  const isGadai = (jenis === 'NINA GADAI');
+  
+  document.getElementById('gadai-fields').style.display = isGadai ? 'block' : 'none';
+  document.getElementById('umum-fields').style.display = isGadai ? 'none' : 'block';
+  document.getElementById('app-title').textContent = isGadai ? 'Bukti Angsuran' : 'Bukti Transaksi';
+  
+  renderReceipt();
+}
+
+function rupiah(n){
+  n = Math.round(Number(n)||0);
+  return 'Rp ' + n.toLocaleString('id-ID');
+}
+function tglID(iso){
+  if(!iso) return '-';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+const W = 32;
+function center(t){ t=t||''; const p=Math.max(0, Math.floor((W-t.length)/2)); return ' '.repeat(p)+t; }
+function padLine(left,right){
+  left = left||''; right = right||'';
+  const space = W - left.length - right.length;
+  if(space < 1) return left + ' ' + right;
+  return left + ' '.repeat(space) + right;
+}
+function wrap(text, width){
+  width = width || W;
+  if(!text) return [];
+  const words = text.split(' ');
+  const lines = []; let cur='';
+  words.forEach(w=>{
+    if((cur+' '+w).trim().length > width){ lines.push(cur.trim()); cur=w; }
+    else{ cur = (cur+' '+w).trim(); }
+  });
+  if(cur) lines.push(cur);
+  return lines;
+}
+const HR = '-'.repeat(W);
+const HR2 = '='.repeat(W);
+
+function renderReceipt(){
+  const jenis = document.getElementById('jenis').value;
+  const nama = document.getElementById('nama').value || '-';
+  const barang = document.getElementById('barang').value || '-';
+  const catatan = document.getElementById('catatan').value;
+  const lines = [];
+
+  lines.push(center('NINA I FIX ID'));
+  lines.push(center('Cipedang, Bongas'));
+  lines.push(center('Indramayu, Jawa Barat'));
+  lines.push(center('WA 085717978783'));
+  lines.push(HR2);
+  lines.push(center(jenis));
+  lines.push(HR2);
+
+  if(jenis === 'NINA GADAI'){
+    const opsiGadai = document.getElementById('opsiGadai').value;
+    const ke = document.getElementById('ke').value || '1';
+    const tanggal = document.getElementById('tanggal').value;
+    const jPokok = Number(document.getElementById('jumlahPokok').value) || 0;
+    const jService = Number(document.getElementById('jumlahService').value) || 0;
+    const sisa = Number(document.getElementById('sisa').value) || 0;
+    const totalBayar = jPokok + jService;
+
+    lines.push(center('BUKTI PEMBAYARAN ANGSURAN'));
+    lines.push(HR2);
+    lines.push(padLine('Tanggal', tglID(tanggal)));
+    lines.push('Nama   : '+nama);
+    lines.push('Barang :');
+    wrap(barang).forEach(l=>lines.push(l));
+    lines.push(HR);
+    lines.push(center('ANGSURAN KE-' + ke));
+    lines.push(HR);
+
+    if(opsiGadai === 'CICILAN' || opsiGadai === 'POKOK'){
+      lines.push(padLine('Bayar Pokok', rupiah(jPokok)));
+    }
+    if(opsiGadai === 'CICILAN' || opsiGadai === 'SERVICE'){
+      lines.push(padLine('Service Payment', rupiah(jService)));
+    }
+
+    lines.push(HR);
+    lines.push(padLine('TOTAL BAYAR', rupiah(totalBayar)));
+    lines.push(padLine('Sisa Pokok', rupiah(sisa)));
+  } else {
+    const tanggal = document.getElementById('tanggalUmum').value;
+    const jumlah = Number(document.getElementById('jumlahUmum').value) || 0;
+
+    lines.push(padLine('Tanggal', tglID(tanggal)));
+    lines.push('Nama   : '+nama);
+    lines.push('Barang :');
+    wrap(barang).forEach(l=>lines.push(l));
+    lines.push(HR);
+    lines.push(padLine('JUMLAH BAYAR', rupiah(jumlah)));
+  }
+
+  if(catatan){
+    lines.push(HR);
+    lines.push('Catatan:');
+    wrap(catatan).forEach(l=>lines.push(l));
+  }
+
+  lines.push(HR2);
+  lines.push(center('PEMBAYARAN DITERIMA'));
+  lines.push(center('Simpan sebagai bukti sah'));
+  lines.push('');
+  lines.push(padLine('Petugas', '________'));
+  lines.push('');
+  lines.push(center('Terima kasih'));
+  lines.push('');
+
+  document.getElementById('receipt-preview').textContent = lines.join('\n');
+}
+
+class ReceiptBuilder{
+  constructor(){ this.bytes=[]; }
+  raw(arr){ this.bytes.push(...arr); return this; }
+  init(){ return this.raw([0x1B,0x40]); }
+  text(str){ return this.raw(Array.from(new TextEncoder().encode(str))); }
+  line(str){ this.text(str||''); return this.raw([0x0A]); }
+  feed(n){ n=n||1; for(let i=0;i<n;i++) this.raw([0x0A]); return this; }
+  build(){ return new Uint8Array(this.bytes); }
+}
+function buildReceiptBytes(previewText){
+  const b = new ReceiptBuilder();
+  b.init();
+  previewText.split('\n').forEach(l=>b.line(l));
+  b.feed(3);
+  return b.build();
+}
+
+const PRINTER_PROFILES = [
+  { service:'000018f0-0000-1000-8000-00805f9b34fb', characteristic:'00002af1-0000-1000-8000-00805f9b34fb' },
+  { service:'49535343-8841-43f4-a8d4-ecbe34729bb3', characteristic:'49535343-1e4d-4bd9-ba61-23c647249616' },
+  { service:'49535343-8841-43f4-a8d4-ecbe34729bb3', characteristic:'49535343-6daa-4d02-abf6-19569aca69fe' },
+  { service:'e7810a71-73ae-499d-8c15-faa9aef0c3f2', characteristic:'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f' },
+];
+let btDevice=null, btChar=null;
+
+function updateConnStatus(connected, name){
+  const badge = document.getElementById('connBadge');
+  const label = document.getElementById('connLabel');
+  badge.classList.toggle('connected', !!connected);
+  label.textContent = connected ? (name || 'Tersambung') : 'Printer';
+}
+
+async function connectPrinter(){
+  if(!navigator.bluetooth){
+    alert('Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome di Android[cite: 1].');
+    return false;
+  }
+  try{
+    btDevice = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: PRINTER_PROFILES.map(p=>p.service)
+    });
+    const server = await btDevice.gatt.connect();
+    btChar = null;
+    for(const profile of PRINTER_PROFILES){
+      try{
+        const service = await server.getPrimaryService(profile.service);
+        const char = await service.getCharacteristic(profile.characteristic);
+        btChar = char;
+        break;
+      }catch(e){}
+    }
+    if(!btChar){
+      throw new Error('Layanan printer tidak dikenali oleh perangkat ini.');
+    }
+    updateConnStatus(true, btDevice.name);
+    btDevice.addEventListener('gattserverdisconnected', ()=>updateConnStatus(false));
+    return true;
+  }catch(err){
+    console.error(err);
+    if(err.name !== 'NotFoundError'){
+      alert('Gagal menyambungkan printer: '+err.message);
+    }
+    updateConnStatus(false);
+    return false;
+  }
+}
+
+async function writeToPrinter(bytes){
+  const chunkSize = 20;
+  for(let i=0;i<bytes.length;i+=chunkSize){
+    const chunk = bytes.slice(i, i+chunkSize);
+    try{
+      await btChar.writeValueWithoutResponse(chunk);
+    }catch(e){
+      await btChar.writeValue(chunk);
+    }
+    await new Promise(r=>setTimeout(r,25));
+  }
+}
+
+async function printReceipt(){
+  const previewText = document.getElementById('receipt-preview').textContent;
+  if(!previewText.trim()){
+    alert('Lengkapi data terlebih dahulu.');
+    return;
+  }
+  if(!btChar){
+    const ok = await connectPrinter();
+    if(!ok) return;
+  }
+  try{
+    const bytes = buildReceiptBytes(previewText);
+    await writeToPrinter(bytes);
+  }catch(err){
+    console.error(err);
+    alert('Gagal mencetak: '+err.message+'\nCoba sambungkan ulang printer.');
+    updateConnStatus(false);
+  }
+}
+
+function browserPrint(){
+  window.print();
+}
+</script>
+</body>
+</html>
